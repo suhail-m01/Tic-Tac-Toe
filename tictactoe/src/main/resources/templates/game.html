@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>TicTacToe — Play</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080c12;--surface:#0f1520;--card:#13192a;--card2:#16202e;
+  --border:#1e2d40;--border2:#253548;
+  --text:#f0f4f8;--text2:#8899aa;--muted:#4a5a6a;
+  --x:#ff4757;--o:#00d2d3;--gold:#ffd32a;
+  --green:#2ecc71;--win-glow:rgba(255,211,42,.15);
+}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;display:flex;flex-direction:column}
+
+/* TOPBAR */
+nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;gap:16px;flex-shrink:0}
+.nav-brand{display:flex;align-items:center;gap:10px;font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.08em}
+.brand-dot-x{color:var(--x)}.brand-dot-o{color:var(--o)}
+.nav-spacer{flex:1}
+.nav-user{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2)}
+.avatar{width:30px;height:30px;background:linear-gradient(135deg,var(--x),var(--o));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.nav-btn{background:none;border:1px solid var(--border2);border-radius:7px;color:var(--text2);font-family:'DM Sans',sans-serif;font-size:12px;padding:6px 12px;cursor:pointer;transition:all .2s}
+.nav-btn:hover{border-color:var(--border);color:var(--text)}
+.nav-btn.danger:hover{border-color:var(--x);color:var(--x)}
+
+/* LAYOUT */
+.layout{flex:1;display:grid;grid-template-columns:260px 1fr 260px;gap:0;overflow:hidden}
+.panel{background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:20px 16px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.panel.right{border-right:none;border-left:1px solid var(--border)}
+.panel-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:14px}
+
+/* CENTER */
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px;overflow-y:auto}
+
+/* MODE SELECTOR */
+.mode-row{display:flex;gap:8px}
+.mode-btn{flex:1;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text2);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all .2s;text-align:center}
+.mode-btn.active{background:rgba(0,210,211,.08);border-color:var(--o);color:var(--o)}
+.mode-btn:hover:not(.active){border-color:var(--border2);color:var(--text)}
+
+/* DIFFICULTY */
+.diff-row{display:flex;gap:8px}
+.diff-btn{flex:1;padding:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .2s;text-align:center}
+.diff-btn.active.easy{background:rgba(46,204,113,.08);border-color:var(--green);color:var(--green)}
+.diff-btn.active.hard{background:rgba(255,71,87,.08);border-color:var(--x);color:var(--x)}
+#diffRow{display:flex;gap:8px}
+
+/* TURN INDICATOR */
+.turn-bar{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--text2);padding:10px 16px;background:var(--card);border:1px solid var(--border);border-radius:10px;min-width:320px;justify-content:center}
+.turn-sym{font-family:'Bebas Neue',sans-serif;font-size:22px;width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center}
+.turn-sym.x{color:var(--x);background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.3)}
+.turn-sym.o{color:var(--o);background:rgba(0,210,211,.1);border:1px solid rgba(0,210,211,.3)}
+
+/* BOARD */
+.board-wrap{position:relative}
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;width:300px;height:300px}
+.cell{background:var(--card);border:1px solid var(--border2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:80px;cursor:pointer;transition:background .15s,transform .1s,border-color .2s;user-select:none;position:relative;overflow:hidden}
+.cell::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at center,rgba(255,255,255,.04),transparent);opacity:0;transition:opacity .2s}
+.cell:hover:not(.taken)::after{opacity:1}
+.cell:hover:not(.taken){background:var(--card2);border-color:var(--border);transform:scale(.97)}
+.cell.taken{cursor:default}
+.cell.x{color:var(--x);text-shadow:0 0 30px rgba(255,71,87,.6)}
+.cell.o{color:var(--o);text-shadow:0 0 30px rgba(0,210,211,.6)}
+.cell.win{background:var(--win-glow);border-color:var(--gold);animation:winPulse 1s ease infinite alternate}
+@keyframes winPulse{from{box-shadow:0 0 0 0 rgba(255,211,42,.1)}to{box-shadow:0 0 20px 4px rgba(255,211,42,.2)}}
+.cell.pop{animation:cellPop .25s ease both}
+@keyframes cellPop{0%{transform:scale(.6)}60%{transform:scale(1.1)}100%{transform:scale(1)}}
+.cell.disabled{pointer-events:none;opacity:.6}
+
+/* RESULT OVERLAY */
+.result-overlay{position:absolute;inset:0;background:rgba(8,12,18,.88);border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;opacity:0;pointer-events:none;transition:opacity .3s;backdrop-filter:blur(4px)}
+.result-overlay.show{opacity:1;pointer-events:all}
+.result-emoji{font-size:52px;animation:bounceIn .4s ease both}
+@keyframes bounceIn{0%{transform:scale(0) rotate(-15deg)}70%{transform:scale(1.2) rotate(3deg)}100%{transform:scale(1) rotate(0)}}
+.result-text{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:.05em}
+.result-sub{font-size:13px;color:var(--text2)}
+.btn-restart{padding:10px 28px;background:linear-gradient(135deg,var(--x),#c0392b);border:none;border-radius:9px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .2s}
+.btn-restart:hover{opacity:.9}
+
+/* ACTION ROW */
+.action-row{display:flex;gap:8px}
+.btn-action{flex:1;padding:10px;background:var(--card);border:1px solid var(--border);border-radius:9px;color:var(--text2);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all .2s;text-align:center}
+.btn-action:hover{border-color:var(--border2);color:var(--text)}
+.btn-action.new{border-color:rgba(0,210,211,.3);color:var(--o)}
+.btn-action.new:hover{background:rgba(0,210,211,.08)}
+
+/* STATS CARD */
+.stats-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px}
+.stats-name{font-size:13px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
+.stat{background:var(--card2);border-radius:8px;padding:10px 6px;text-align:center}
+.stat-num{font-family:'DM Mono',sans-serif;font-size:20px;font-weight:500}
+.stat-num.w{color:var(--green)}.stat-num.l{color:var(--x)}.stat-num.d{color:var(--gold)}
+.stat-lbl{font-size:10px;color:var(--muted);margin-top:3px}
+.winrate-bar-wrap{height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:8px}
+.winrate-bar{height:100%;background:linear-gradient(90deg,var(--o),var(--green));border-radius:3px;transition:width .8s}
+.winrate-lbl{font-size:11px;color:var(--text2);margin-top:5px}
+.winrate-lbl span{color:var(--o);font-family:'DM Mono',monospace}
+
+/* LEADERBOARD */
+.lb-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;margin-bottom:4px;font-size:13px;transition:background .15s}
+.lb-row:hover{background:var(--card)}
+.lb-rank{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);width:20px;text-align:center;flex-shrink:0}
+.lb-rank.gold{color:var(--gold)}.lb-rank.silver{color:#aaa}.lb-rank.bronze{color:#cd7f32}
+.lb-name{flex:1;font-weight:500}
+.lb-wins{font-family:'DM Mono',monospace;font-size:12px;color:var(--green)}
+.lb-total{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+
+/* MOVE LOG */
+.move-log{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto}
+.log-item{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--card);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--text2)}
+.log-sym{font-family:'Bebas Neue',sans-serif;font-size:16px;width:22px}
+.log-sym.x{color:var(--x)}.log-sym.o{color:var(--o)}
+
+/* PLAYER NAME INPUT (vs friend) */
+.player-input-row{display:none;gap:8px;margin-top:8px}
+.player-input-row.show{display:flex}
+.player-input-row input{flex:1;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;transition:border-color .2s}
+.player-input-row input:focus{border-color:var(--o)}
+.player-input-row input::placeholder{color:var(--muted)}
+
+/* AI thinking indicator */
+.ai-thinking{display:none;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.ai-thinking.show{display:flex}
+.dot-pulse{display:flex;gap:4px}
+.dot-pulse span{width:5px;height:5px;background:var(--o);border-radius:50%;animation:dp .9s ease infinite}
+.dot-pulse span:nth-child(2){animation-delay:.2s}.dot-pulse span:nth-child(3){animation-delay:.4s}
+@keyframes dp{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-brand">
+    <span class="brand-dot-x">TIC</span>&nbsp;<span class="brand-dot-o">TAC</span>&nbsp;<span>TOE</span>
+  </div>
+  <div class="nav-spacer"></div>
+  <button class="nav-btn" onclick="location.href='/history'">📜 History</button>
+  <div class="nav-user">
+    <div class="avatar" id="navAvatar">?</div>
+    <span id="navUser" th:text="${user.username}">Player</span>
+  </div>
+  <form th:action="@{/logout}" method="post" style="display:inline">
+    <button type="submit" class="nav-btn danger">Sign Out</button>
+  </form>
+</nav>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- LEFT PANEL: controls + stats -->
+  <div class="panel">
+    <div class="panel-title">Game Mode</div>
+    <div class="mode-row" style="margin-bottom:10px">
+      <button class="mode-btn active" id="btnVsAI"     onclick="setMode('VS_AI')">🤖 vs AI</button>
+      <button class="mode-btn"        id="btnVsFriend"  onclick="setMode('VS_FRIEND')">👥 vs Friend</button>
+    </div>
+    <div class="player-input-row" id="p2Row">
+      <input type="text" id="p2Name" placeholder="Player 2 name" maxlength="16">
+    </div>
+
+    <div style="margin-top:14px" id="diffSection">
+      <div class="panel-title">Difficulty</div>
+      <div class="diff-row">
+        <button class="diff-btn active easy" id="btnEasy" onclick="setDiff('EASY')">😊 Easy</button>
+        <button class="diff-btn hard"        id="btnHard" onclick="setDiff('HARD')">💀 Hard</button>
+      </div>
+    </div>
+
+    <div style="margin-top:20px">
+      <div class="panel-title">Your Stats</div>
+      <div class="stats-card">
+        <div class="stats-name">
+          <div class="avatar" style="width:24px;height:24px;font-size:10px" id="statsAvatar">?</div>
+          <span id="statsName" th:text="${user.username}">Player</span>
+        </div>
+        <div class="stats-grid">
+          <div class="stat"><div class="stat-num w" id="sWins"  th:text="${user.wins}">0</div><div class="stat-lbl">Wins</div></div>
+          <div class="stat"><div class="stat-num l" id="sLoss"  th:text="${user.losses}">0</div><div class="stat-lbl">Losses</div></div>
+          <div class="stat"><div class="stat-num d" id="sDraw"  th:text="${user.draws}">0</div><div class="stat-lbl">Draws</div></div>
+        </div>
+        <div class="winrate-bar-wrap">
+          <div class="winrate-bar" id="wrBar" th:style="'width:' + ${user.winRate} + '%'"></div>
+        </div>
+        <div class="winrate-lbl">Win rate: <span id="wrPct" th:text="${user.winRate} + '%'">0%</span></div>
+      </div>
+    </div>
+
+    <div style="margin-top:4px">
+      <div class="panel-title">Move Log</div>
+      <div class="move-log" id="moveLog">
+        <div style="font-size:12px;color:var(--muted);padding:8px 10px">No moves yet</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER: board -->
+  <div class="center">
+    <div class="turn-bar">
+      <div class="turn-sym x">X</div>
+      <span id="turnText">Your turn</span>
+      <div class="ai-thinking" id="aiThink">
+        <div class="dot-pulse"><span></span><span></span><span></span></div>
+        AI thinking…
+      </div>
+    </div>
+
+    <div class="board-wrap">
+      <div class="board" id="board">
+        <div class="cell" onclick="move(0)"></div>
+        <div class="cell" onclick="move(1)"></div>
+        <div class="cell" onclick="move(2)"></div>
+        <div class="cell" onclick="move(3)"></div>
+        <div class="cell" onclick="move(4)"></div>
+        <div class="cell" onclick="move(5)"></div>
+        <div class="cell" onclick="move(6)"></div>
+        <div class="cell" onclick="move(7)"></div>
+        <div class="cell" onclick="move(8)"></div>
+      </div>
+
+      <div class="result-overlay" id="resultOverlay">
+        <div class="result-emoji" id="resEmoji">🎉</div>
+        <div class="result-text" id="resText">You Win!</div>
+        <div class="result-sub" id="resSub"></div>
+        <button class="btn-restart" onclick="resetGame()">Play Again</button>
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn-action new" onclick="resetGame()">↺ New Game</button>
+      <button class="btn-action"     onclick="location.href='/history'">📜 History</button>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL: leaderboard -->
+  <div class="panel right">
+    <div class="panel-title">🏆 Leaderboard</div>
+    <div id="leaderboard">
+      <th:block th:each="u, i : ${leaderboard}">
+        <div class="lb-row">
+          <div class="lb-rank"
+               th:classappend="${i.index == 0} ? 'gold' : (${i.index == 1} ? 'silver' : (${i.index == 2} ? 'bronze' : ''))"
+               th:text="${i.index == 0} ? '🥇' : (${i.index == 1} ? '🥈' : (${i.index == 2} ? '🥉' : '#' + (i.index + 1)))">
+          </div>
+          <div class="lb-name" th:text="${u.username}">Player</div>
+          <div class="lb-wins" th:text="${u.wins} + 'W'">0W</div>
+          <div class="lb-total" th:text="${u.totalGames} + 'G'">0G</div>
+        </div>
+      </th:block>
+      <div th:if="${#lists.isEmpty(leaderboard)}" style="font-size:12px;color:var(--muted);padding:10px">
+        No games played yet. Be the first!
+      </div>
+    </div>
+
+    <div style="margin-top:24px">
+      <div class="panel-title">🎯 Game Info</div>
+      <div class="stats-card" style="padding:12px;font-size:12px;color:var(--text2);line-height:1.8">
+        <div style="margin-bottom:6px"><span style="color:var(--x)">X</span> = You &nbsp;|&nbsp; <span style="color:var(--o)">O</span> = Opponent</div>
+        <div>🤖 Hard AI uses Minimax</div>
+        <div>— It plays <em>perfectly</em></div>
+        <div style="margin-top:6px">👥 vs Friend = local 2P</div>
+        <div>— Pass the device</div>
+        <div style="margin-top:6px;font-size:11px;color:var(--muted)">Results saved automatically</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+const CELLS = ['_','_','_','_','_','_','_','_','_'];
+let board        = [...CELLS];
+let mode         = 'VS_AI';
+let difficulty   = 'EASY';
+let gameOver     = false;
+let moveCount    = 0;
+let currentTurn  = 'X';  // for 2P mode
+const username   = document.getElementById('navUser').textContent.trim();
+const posNames   = ['Top-Left','Top-Mid','Top-Right','Mid-Left','Center','Mid-Right','Bot-Left','Bot-Mid','Bot-Right'];
+
+// Init avatars
+['navAvatar','statsAvatar'].forEach(id=>{
+  document.getElementById(id).textContent = username.charAt(0).toUpperCase();
+});
+
+// ── Mode / Difficulty ─────────────────────────────────────────────────────────
+function setMode(m) {
+  mode = m;
+  document.getElementById('btnVsAI').classList.toggle('active', m === 'VS_AI');
+  document.getElementById('btnVsFriend').classList.toggle('active', m === 'VS_FRIEND');
+  document.getElementById('diffSection').style.display = m === 'VS_AI' ? '' : 'none';
+  document.getElementById('p2Row').classList.toggle('show', m === 'VS_FRIEND');
+  resetGame();
+}
+
+function setDiff(d) {
+  difficulty = d;
+  document.getElementById('btnEasy').classList.toggle('active', d === 'EASY');
+  document.getElementById('btnHard').classList.toggle('active', d === 'HARD');
+  resetGame();
+}
+
+// ── Move ──────────────────────────────────────────────────────────────────────
+async function move(idx) {
+  if (gameOver || board[idx] !== '_') return;
+  if (mode === 'VS_AI' && board.filter(c => c !== '_').length % 2 === 1) return; // AI's turn guard
+
+  const cells = document.querySelectorAll('.cell');
+  cells.forEach(c => c.classList.add('disabled'));
+
+  try {
+    const res = await fetch('/api/move', {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify({ board: board.join(''), cell: idx, mode, difficulty })
+    });
+    const data = await res.json();
+
+    if (data.status === 'INVALID') { cells.forEach(c=>c.classList.remove('disabled')); return; }
+
+    // Update local board
+    board = data.board.split('');
+    moveCount = board.filter(c => c !== '_').length;
+
+    // Animate player move
+    animateCell(idx, 'X');
+
+    // Log player move
+    addLog('X', posNames[idx]);
+
+    // Animate AI move if present
+    if (data.aiMove >= 0) {
+      await sleep(350);
+      animateCell(data.aiMove, 'O');
+      addLog('O', posNames[data.aiMove]);
+    }
+
+    // VS_FRIEND turn indicator
+    if (mode === 'VS_FRIEND') {
+      currentTurn = board.filter((_,i) => board.slice(0,i+1).join('').split('X').length > board.slice(0,i+1).join('').split('O').length) ? 'O' : 'X';
+    }
+
+    updateTurnBar(data.status, data.aiMove);
+    renderBoard(data.winLine);
+
+    if (data.status !== 'ONGOING') {
+      await sleep(400);
+      endGame(data.status, data.message, data.winLine);
+    } else {
+      cells.forEach(c => c.classList.remove('disabled'));
+    }
+
+  } catch(e) {
+    cells.forEach(c=>c.classList.remove('disabled'));
+    console.error(e);
+  }
+}
+
+function animateCell(idx, sym) {
+  const cell = document.querySelectorAll('.cell')[idx];
+  cell.textContent = sym;
+  cell.classList.add(sym.toLowerCase(), 'taken', 'pop');
+  setTimeout(() => cell.classList.remove('pop'), 300);
+}
+
+function renderBoard(winLine) {
+  if (!winLine) return;
+  const cells = document.querySelectorAll('.cell');
+  winLine.forEach(i => cells[i].classList.add('win'));
+}
+
+function updateTurnBar(status, aiMove) {
+  const txt = document.getElementById('turnText');
+  const think = document.getElementById('aiThink');
+  think.classList.remove('show');
+  if (status === 'ONGOING') {
+    if (mode === 'VS_AI') {
+      txt.textContent = 'Your turn';
+    } else {
+      // count X and O on board
+      const xs = board.filter(c => c === 'X').length;
+      const os = board.filter(c => c === 'O').length;
+      const next = xs <= os ? 'X (You)' : 'O (' + (document.getElementById('p2Name').value || 'Player 2') + ')';
+      txt.textContent = next + '\'s turn';
+    }
+  }
+}
+
+function addLog(sym, pos) {
+  const log = document.getElementById('moveLog');
+  if (log.children[0]?.style.color === 'var(--muted)') log.innerHTML = '';
+  const item = document.createElement('div');
+  item.className = 'log-item';
+  item.innerHTML = `<span class="log-sym ${sym.toLowerCase()}">${sym}</span><span>${pos}</span>`;
+  log.insertBefore(item, log.firstChild);
+}
+
+// ── End Game ──────────────────────────────────────────────────────────────────
+async function endGame(status, message, winLine) {
+  gameOver = true;
+  const overlay = document.getElementById('resultOverlay');
+  const emoji   = document.getElementById('resEmoji');
+  const text    = document.getElementById('resText');
+  const sub     = document.getElementById('resSub');
+
+  let result = 'DRAW', opponentName = '';
+
+  if (status === 'WIN_X') {
+    emoji.textContent = '🎉'; text.textContent = 'You Win!'; text.style.color = 'var(--green)';
+    result = 'WIN'; opponentName = mode === 'VS_AI' ? `AI (${difficulty})` : (document.getElementById('p2Name').value || 'Player 2');
+    sub.textContent = `Finished in ${moveCount} moves`;
+  } else if (status === 'WIN_O') {
+    if (mode === 'VS_AI') {
+      emoji.textContent = '🤖'; text.textContent = 'AI Wins!'; text.style.color = 'var(--x)';
+      result = 'LOSS'; opponentName = `AI (${difficulty})`;
+    } else {
+      const p2 = document.getElementById('p2Name').value || 'Player 2';
+      emoji.textContent = '🏆'; text.textContent = `${p2} Wins!`; text.style.color = 'var(--o)';
+      result = 'LOSS'; opponentName = p2;
+    }
+    sub.textContent = `Better luck next time`;
+  } else {
+    emoji.textContent = '🤝'; text.textContent = "It's a Draw!"; text.style.color = 'var(--gold)';
+    result = 'DRAW'; opponentName = mode === 'VS_AI' ? `AI (${difficulty})` : (document.getElementById('p2Name').value || 'Player 2');
+    sub.textContent = 'No winner this time';
+  }
+
+  overlay.classList.add('show');
+
+  // Save to backend
+  try {
+    const saved = await fetch('/api/save', {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        result, mode, difficulty,
+        board: board.join(''),
+        opponentName
+      })
+    });
+    const updated = await saved.json();
+    document.getElementById('sWins').textContent = updated.wins;
+    document.getElementById('sLoss').textContent = updated.losses;
+    document.getElementById('sDraw').textContent = updated.draws;
+    document.getElementById('wrBar').style.width = updated.winRate + '%';
+    document.getElementById('wrPct').textContent = updated.winRate + '%';
+
+    // Refresh leaderboard
+    const lb = await fetch('/api/leaderboard');
+    const lbData = await lb.json();
+    renderLeaderboard(lbData);
+  } catch(e) { console.error(e); }
+}
+
+function renderLeaderboard(data) {
+  const medals = ['🥇','🥈','🥉'];
+  const container = document.getElementById('leaderboard');
+  container.innerHTML = data.length === 0
+    ? '<div style="font-size:12px;color:var(--muted);padding:10px">No games played yet.</div>'
+    : data.map((u,i) => `
+      <div class="lb-row">
+        <div class="lb-rank ${i===0?'gold':i===1?'silver':i===2?'bronze':''}">${i<3?medals[i]:'#'+(i+1)}</div>
+        <div class="lb-name">${esc(u.username)}</div>
+        <div class="lb-wins">${u.wins}W</div>
+        <div class="lb-total">${u.totalGames}G</div>
+      </div>`).join('');
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────────
+function resetGame() {
+  board      = [...CELLS];
+  gameOver   = false;
+  moveCount  = 0;
+  currentTurn= 'X';
+  document.getElementById('resultOverlay').classList.remove('show');
+  document.getElementById('moveLog').innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 10px">No moves yet</div>';
+  document.getElementById('turnText').textContent = 'Your turn';
+  document.getElementById('aiThink').classList.remove('show');
+  const cells = document.querySelectorAll('.cell');
+  cells.forEach(c => { c.textContent = ''; c.className = 'cell'; });
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function esc(s) { const d=document.createElement('div');d.textContent=s;return d.innerHTML; }
+</script>
+</body>
+</html>
